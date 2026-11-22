@@ -24,6 +24,7 @@ import {
 	windowsNativeCaptureActive,
 } from "../../state";
 import { recordingFocus } from "../focus";
+import { setRecordingPauseShortcutActive } from "../pauseShortcut";
 import { setRecordingZoomShortcutActive } from "../zoomShortcut";
 
 import type { RecordingHandlerContext } from "./handlerContext";
@@ -86,6 +87,7 @@ export function applyRecordingState(
 	}
 
 	setRecordingZoomShortcutActive(recording);
+	setRecordingPauseShortcutActive(recording);
 	if (!recording) recordingFocus.stop();
 	const source = selectedSource || { name: "Screen" };
 	const recordingArea = recording ? getSourceArea(selectedSource) : null;

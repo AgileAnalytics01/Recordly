@@ -44,6 +44,7 @@ import {
 } from "./ipc/handlers";
 import { recordingFocus } from "./ipc/recording/focus";
 import { clearRecordingTrashUndo } from "./ipc/recording/library";
+import { setRecordingPauseShortcutActive } from "./ipc/recording/pauseShortcut";
 import { setRecordingZoomShortcutActive } from "./ipc/recording/zoomShortcut";
 import {
 	drainAppProcessDiagnostics,
@@ -1283,6 +1284,7 @@ app.on("quit", () => {
 let quitCleanupState: "idle" | "waiting" | "ready" = "idle";
 app.on("will-quit", (event) => {
 	setRecordingZoomShortcutActive(false);
+	setRecordingPauseShortcutActive(false);
 	if (quitCleanupState === "ready") return;
 	if (quitCleanupState === "waiting") {
 		event.preventDefault();
