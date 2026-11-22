@@ -725,6 +725,7 @@ interface Window {
 			error?: string;
 		}>;
 		onStopRecordingFromTray: (callback: () => void) => () => void;
+		onTogglePauseRecordingFromShortcut?: (callback: () => void) => () => void;
 		onRecordingStateChanged: (
 			callback: (state: { recording: boolean; sourceName: string }) => void,
 		) => () => void;

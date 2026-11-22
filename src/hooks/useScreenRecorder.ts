@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { useRecorderCaptureSetup } from "./useRecorderCaptureSetup";
 import { useRecorderClock } from "./useRecorderClock";
 import { useRecorderControls } from "./useRecorderControls";
@@ -74,6 +75,19 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 	useRecorderSubscriptions({ ...context, ...stop });
 	const startup = useRecorderStartup(context);
 	const controls = useRecorderControls({ ...context, ...stop, ...startup });
+
+	// Global pause/resume hotkey (Ctrl/Cmd+Alt+P), registered by main only while recording.
+	const pauseToggleRef = useRef<() => void>(() => undefined);
+	pauseToggleRef.current = () => {
+		if (!context.recording || context.finalizing) return;
+		if (context.paused) controls.resumeRecording();
+		else controls.pauseRecording();
+	};
+	useEffect(() => {
+		return window.electronAPI?.onTogglePauseRecordingFromShortcut?.(() =>
+			pauseToggleRef.current(),
+		);
+	}, []);
 	const {
 		recording,
 		restarting,

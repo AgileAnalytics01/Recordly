@@ -66,6 +66,7 @@ export function RecordingControls({
 				</Button>
 				<Tooltip.Content>
 					{paused ? t("recording.resume") : t("recording.pause")}
+					{` (${/Mac/i.test(navigator.platform) ? "⌘⌥P" : "Ctrl+Alt+P"})`}
 				</Tooltip.Content>
 			</Tooltip>
 			<Tooltip>
