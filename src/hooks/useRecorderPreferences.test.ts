@@ -48,7 +48,16 @@ const hooks = vi.hoisted(() => {
 	};
 });
 vi.mock("react", async (original) => ({ ...(await original<typeof import("react")>()), ...hooks }));
-vi.mock("@/lib/auth/recordlyAuth", () => ({ hasRecordlySession: async () => true }));
+const auth = vi.hoisted(() => ({ configured: true, session: true }));
+vi.mock("@/lib/auth/recordlyAuth", () => ({
+	get recordlyAuthConfigured() {
+		return auth.configured;
+	},
+	hasRecordlySession: async () => auth.session,
+}));
+vi.mock("@/lib/recordingPermissions", () => ({
+	hasRequiredRecordingPermissions: async () => true,
+}));
 
 import { useRecorderPreferences } from "./useRecorderPreferences";
 
@@ -56,6 +65,7 @@ let preferences!: (value: unknown) => void;
 let countdown!: (value: unknown) => void;
 const savedPreferences = vi.fn();
 const savedCountdown = vi.fn();
+const showProjectDashboard = vi.fn();
 beforeEach(() => {
 	hooks.reset();
 	vi.clearAllMocks();
@@ -72,10 +82,17 @@ beforeEach(() => {
 			getCountdownDelay: () => pendingCountdown,
 			setRecordingPreferences: savedPreferences,
 			setCountdownDelay: savedCountdown,
+			showProjectDashboard,
+			showRecordingPermissions: vi.fn(),
 		},
 	});
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+	vi.unstubAllGlobals();
+	vi.unstubAllEnvs();
+	auth.configured = true;
+	auth.session = true;
+});
 const flush = async () => {
 	await Promise.resolve();
 	await Promise.resolve();
@@ -136,4 +153,21 @@ it("preserves explicit false/default-device edits even when state values have no
 		[{ systemAudioEnabled: false }],
 		[{ webcamDeviceId: undefined }],
 	]);
+});
+
+it("lets local-only builds (no cloud sign-in configured) open the source picker", async () => {
+	vi.stubEnv("DEV", false);
+	auth.configured = false;
+	auth.session = false;
+	const { preparePermissions } = hooks.render(useRecorderPreferences);
+	await expect(preparePermissions()).resolves.toBe(true);
+	expect(showProjectDashboard).not.toHaveBeenCalled();
+});
+
+it("still sends signed-out users to the dashboard when cloud sign-in is configured", async () => {
+	vi.stubEnv("DEV", false);
+	auth.session = false;
+	const { preparePermissions } = hooks.render(useRecorderPreferences);
+	await expect(preparePermissions()).resolves.toBe(false);
+	expect(showProjectDashboard).toHaveBeenCalledOnce();
 });
