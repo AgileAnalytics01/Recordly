@@ -9,6 +9,24 @@ import {
 } from "@/lib/auth/recordlyAuth";
 import { isSavedSignInLocked } from "@/lib/auth/savedSignIn";
 
+/**
+ * Local-only builds (no Supabase env baked in) can never sign in, and 2.0's
+ * onboarding gates the recorder on a user. Stand in a fixed local profile so
+ * the app works offline; cloud features stay off because there is no token.
+ */
+const LOCAL_ONLY_USER = recordlyAuthConfigured
+	? null
+	: ({
+			id: "local-only",
+			aud: "local",
+			email: "Local mode",
+			is_anonymous: false,
+			app_metadata: { providers: [] },
+			user_metadata: {},
+			identities: [],
+			created_at: new Date(0).toISOString(),
+		} as unknown as User);
+
 export function useRecordlyAuth() {
 	const [user, setUser] = useState<User | null>(null);
 	const [accessToken, setAccessToken] = useState<string>();
@@ -127,7 +145,7 @@ export function useRecordlyAuth() {
 	}, [isCallbackPending]);
 
 	return {
-		user: user?.is_anonymous ? null : user,
+		user: LOCAL_ONLY_USER ?? (user?.is_anonymous ? null : user),
 		accessToken: user?.is_anonymous ? undefined : accessToken,
 		loading,
 		configured: recordlyAuthConfigured,
