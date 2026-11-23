@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "@/components/ui/toast";
 import { translate } from "@/i18n/runtime";
 import { hasSkippedOnboardingSignIn } from "@/lib/auth/onboardingSignIn";
-import { hasRecordlySession } from "@/lib/auth/recordlyAuth";
+import { hasRecordlySession, recordlyAuthConfigured } from "@/lib/auth/recordlyAuth";
 import {
 	hasRequiredRecordingPermissions,
 	requestMissingRecordingPermissions,
@@ -46,7 +46,10 @@ export function useRecorderPreferences() {
 	});
 
 	const preparePermissions = useCallback(async () => {
+		// Local-only builds (no Supabase settings) can never have a session; the
+		// sign-in gate would just bounce every recording attempt to the Library.
 		if (
+			recordlyAuthConfigured &&
 			!import.meta.env.DEV &&
 			!hasSkippedOnboardingSignIn() &&
 			!(await hasRecordlySession().catch(() => false))
