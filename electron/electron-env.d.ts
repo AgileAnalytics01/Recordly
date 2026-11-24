@@ -726,6 +726,18 @@ interface Window {
 		}>;
 		onStopRecordingFromTray: (callback: () => void) => () => void;
 		onTogglePauseRecordingFromShortcut?: (callback: () => void) => () => void;
+		getRecordingShortcuts?: () => Promise<
+			import("../src/lib/globalShortcut").RecordingShortcuts
+		>;
+		setRecordingPauseShortcut?: (
+			binding: import("../src/lib/globalShortcut").GlobalShortcutBinding | null,
+		) => Promise<
+			| { success: true; shortcuts: import("../src/lib/globalShortcut").RecordingShortcuts }
+			| { success: false; error: string }
+		>;
+		onRecordingShortcutsChanged?: (
+			callback: (shortcuts: import("../src/lib/globalShortcut").RecordingShortcuts) => void,
+		) => () => void;
 		onRecordingStateChanged: (
 			callback: (state: { recording: boolean; sourceName: string }) => void,
 		) => () => void;
@@ -1055,6 +1067,11 @@ interface Window {
 		}>;
 		showRecordingPermissions: () => Promise<void>;
 		showRecordingHud: () => Promise<void>;
+		setRecordingAppendTarget?: (enabled: boolean) => Promise<{ success: boolean }>;
+		takeRecordingAppendTarget?: () => Promise<{
+			projectPath: string;
+			recordingPath: string;
+		} | null>;
 		showOnboardingWindow: (options?: { preview?: boolean }) => Promise<boolean>;
 		replayOnboardingIntro?: () => Promise<boolean>;
 		closeOnboardingWindow: () => Promise<boolean>;

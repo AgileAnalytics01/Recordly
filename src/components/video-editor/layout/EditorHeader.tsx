@@ -11,7 +11,7 @@ import { useFocusRing } from "react-aria";
 import { UpgradeButton } from "@/components/billing/UpgradeButton";
 import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
 import { Button } from "@/components/ui/button";
-import { FilmStrip, House, ArrowCounterClockwise as Undo2 } from "@/components/ui/icons";
+import { FilmStrip, House, Plus, ArrowCounterClockwise as Undo2 } from "@/components/ui/icons";
 import type { useI18n } from "@/contexts/I18nContext";
 import { useI18n as useUiLocale } from "@/contexts/I18nContext";
 import type { useExportDimensions } from "../export/useExportDimensions";
@@ -46,6 +46,7 @@ type Props = {
 	canRedo: boolean;
 	handleOpenProjectBrowser: () => void;
 	handleOpenRecordingHud: () => Promise<void>;
+	handleRecordAndAppend?: () => Promise<void>;
 	handleUndo: () => void;
 	handleRedo: () => void;
 	handleProjectNameSubmit: (event?: FormEvent<HTMLFormElement>) => void;
@@ -86,6 +87,7 @@ export function EditorHeader(props: Props) {
 		canRedo,
 		handleOpenProjectBrowser,
 		handleOpenRecordingHud,
+		handleRecordAndAppend,
 		handleUndo,
 		handleRedo,
 		handleProjectNameSubmit,
@@ -147,6 +149,25 @@ export function EditorHeader(props: Props) {
 						<span className="editor-header-button-label">{uiText("ui.home")}</span>
 					</Button>
 				</span>
+				{!project.projectBrowserOpen && handleRecordAndAppend && project.videoPath && (
+					<span className="contents" title={uiText("ui.recordAndAddHint")}>
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							onClick={() => void handleRecordAndAppend()}
+							disabled={recordingUnavailable || Boolean(project.error)}
+							className="editor-header-icon-button h-9 shrink-0 gap-2 px-3"
+							aria-label={uiText("ui.recordAndAddHint")}
+							data-testid="record-and-add"
+						>
+							<Plus className="h-4 w-4" />
+							<span className="editor-header-button-label">
+								{uiText("ui.recordAndAdd")}
+							</span>
+						</Button>
+					</span>
+				)}
 				<span
 					aria-hidden="true"
 					className="mx-2 shrink-0 text-xl font-light text-muted-foreground/60"

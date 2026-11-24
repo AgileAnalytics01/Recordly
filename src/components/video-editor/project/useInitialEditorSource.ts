@@ -11,6 +11,7 @@ import type { useProjectState } from "../state/useProjectState";
 import type { useTimelineState } from "../state/useTimelineState";
 import { type CaptureSourceKind, DEFAULT_WEBCAM_TIME_OFFSET_MS } from "../types";
 import { shouldLoopWebcamSource } from "../videoPlayback/webcamSync";
+import { setPendingRecordingAppend } from "./pendingRecordingAppend";
 
 type SessionPresentation = {
 	hideOverlayCursorByDefault?: boolean;
@@ -165,6 +166,35 @@ export function useInitialEditorSource({
 					project.setError(null);
 					operation.finish("succeeded");
 					return;
+				}
+
+				const append = await window.electronAPI.takeRecordingAppendTarget?.();
+				if (append?.projectPath && append.recordingPath) {
+					operation.step("restore-append-project");
+					const reopened = await window.electronAPI.openProjectFileAtPath(
+						append.projectPath,
+					);
+					const projectPath = reopened.path ?? append.projectPath;
+					if (
+						reopened.success &&
+						reopened.project &&
+						(await applyLoadedProject(reopened.project, projectPath))
+					) {
+						setPendingRecordingAppend({
+							projectPath,
+							recordingPath: append.recordingPath,
+						});
+						operation.finish("succeeded");
+						return;
+					}
+					// The project could not be reopened: open the recording on its own instead.
+					toast.error(
+						t(
+							"editor.recordAppendProjectUnavailable",
+							"Could not reopen the project, so the new recording opened on its own.",
+						),
+					);
+					await window.electronAPI.setCurrentVideoPath(append.recordingPath);
 				}
 
 				operation.step("restore-project");

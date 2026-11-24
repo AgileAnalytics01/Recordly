@@ -36,6 +36,7 @@
 	"timelineDuplicateNoRoom": "There is no room to duplicate this item.",
 	"waylandScreenCastMissing": "Screen recording on Wayland needs a ScreenCast portal. Install the screen-sharing portal for your desktop, or switch to an X11 session and try again.",
 	"startRecordingFailed": "Failed to start recording",
+	"recordAppendUnavailable": "Save the project first, then try again.",
 	"saveRecordingFailed": "Failed to save the recording.",
 	"noFrames": "No video frames were captured. Please record again.",
 	"finishRecordingFailed": "Failed to finish the recording. Your recording may still be available in Projects.",

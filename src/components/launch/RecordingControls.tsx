@@ -1,6 +1,8 @@
 import { Button, Tooltip } from "@heroui/react";
 import { PauseIcon, PlayIcon, Trash } from "@/components/ui/icons";
 import { useScopedT } from "@/contexts/I18nContext";
+import { useRecordingShortcuts } from "@/hooks/useRecordingShortcuts";
+import { formatGlobalShortcut } from "@/lib/globalShortcut";
 import styles from "./LaunchWindow.module.css";
 
 interface RecordingControlsProps {
@@ -24,6 +26,7 @@ export function RecordingControls({
 }: RecordingControlsProps) {
 	const t = useScopedT("launch");
 	const captureT = useScopedT("capture");
+	const [{ pauseRecording: pauseShortcut }] = useRecordingShortcuts();
 	return (
 		<div
 			role="group"
@@ -66,7 +69,8 @@ export function RecordingControls({
 				</Button>
 				<Tooltip.Content>
 					{paused ? t("recording.resume") : t("recording.pause")}
-					{` (${/Mac/i.test(navigator.platform) ? "⌘⌥P" : "Ctrl+Alt+P"})`}
+					{pauseShortcut &&
+						` (${formatGlobalShortcut(pauseShortcut, /Mac/i.test(navigator.platform))})`}
 				</Tooltip.Content>
 			</Tooltip>
 			<Tooltip>

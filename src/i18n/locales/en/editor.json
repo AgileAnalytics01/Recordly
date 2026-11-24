@@ -1,6 +1,7 @@
 {
 	"socials": "Socials",
 	"projectRecovered": "Recovered the previous saved version",
+	"recordAppendProjectUnavailable": "Could not reopen the project, so the new recording opened on its own.",
 	"aspectRatio": {
 		"native": "Native",
 		"widescreen": "Widescreen",
