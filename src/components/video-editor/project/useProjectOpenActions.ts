@@ -405,28 +405,43 @@ export function useProjectOpenActions({
 		project.error,
 	]);
 
-	const handleOpenRecordingHud = useCallback(async () => {
-		if (opening.current) return;
-		opening.current = true;
-		try {
-			videoPlaybackRef.current?.pause();
-			setIsPlaying(false);
-			if (project.videoPath && !project.error) {
-				const saved = await saveProject(false, {
-					remountPreviewAfterSave: false,
-					refreshLibraryAfterSave: false,
-				});
-				if (!saved) return;
+	const openRecordingHud = useCallback(
+		async (appendToProject: boolean) => {
+			if (opening.current) return;
+			opening.current = true;
+			try {
+				videoPlaybackRef.current?.pause();
+				setIsPlaying(false);
+				if (project.videoPath && !project.error) {
+					const saved = await saveProject(false, {
+						remountPreviewAfterSave: false,
+						refreshLibraryAfterSave: false,
+					});
+					if (!saved) return;
+				} else if (appendToProject) return;
+				const armed = await window.electronAPI.setRecordingAppendTarget?.(appendToProject);
+				if (appendToProject && !armed?.success) {
+					toast.error(
+						translate(
+							"notifications.recordAppendUnavailable",
+							"Save the project first, then try again.",
+						),
+					);
+					return;
+				}
+				await window.electronAPI.showRecordingHud();
+			} catch {
+				toast.error(
+					translate("notifications.startRecordingFailed", "Failed to start recording"),
+				);
+			} finally {
+				opening.current = false;
 			}
-			await window.electronAPI.showRecordingHud();
-		} catch {
-			toast.error(
-				translate("notifications.startRecordingFailed", "Failed to start recording"),
-			);
-		} finally {
-			opening.current = false;
-		}
-	}, [videoPlaybackRef, setIsPlaying, project.videoPath, project.error, saveProject]);
+		},
+		[project.error, project.videoPath, saveProject, setIsPlaying, videoPlaybackRef],
+	);
+	const handleOpenRecordingHud = useCallback(() => openRecordingHud(false), [openRecordingHud]);
+	const handleRecordAndAppend = useCallback(() => openRecordingHud(true), [openRecordingHud]);
 
 	useEffect(() => {
 		const openRequestedDashboard = () => {
@@ -500,6 +515,7 @@ export function useProjectOpenActions({
 		handleImportMediaOrProject,
 		handleOpenProjectBrowser,
 		handleOpenRecordingHud,
+		handleRecordAndAppend,
 		handleDeleteProjects,
 	};
 }

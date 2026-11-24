@@ -26,6 +26,7 @@ import { useAutoApplyZooms } from "../hooks/useAutoApplyZooms";
 import type { useTimelineEditingController } from "../hooks/useTimelineEditingController";
 import { useVideoSourceRecovery } from "../hooks/useVideoSourceRecovery";
 import { RecordingLibraryPanel } from "../library/RecordingLibraryPanel";
+import { useAppendPendingRecording } from "../library/useAppendPendingRecording";
 import { useRecordingLibrary } from "../library/useRecordingLibrary";
 import type { useVideoEditorPresets } from "../presets/useVideoEditorPresets";
 import { isMissingProjectRecording } from "../project/projectLoadError";
@@ -159,6 +160,11 @@ export function EditorShell(props: Props) {
 		void projectController.openActions.handleOpenProjectBrowser();
 	};
 	const library = useRecordingLibrary(project, timeline, ui, appearance);
+	useAppendPendingRecording({
+		project,
+		library,
+		ready: ui.isPreviewReady && ui.duration > 0 && ui.clipInitializedRef.current,
+	});
 	// biome-ignore lint/correctness/useExhaustiveDependencies: Changing the active inspector closes the Videos view.
 	useEffect(() => {
 		library.setOpen(false);
@@ -390,6 +396,7 @@ export function EditorShell(props: Props) {
 						handleOpenRecordingHud={
 							projectController.openActions.handleOpenRecordingHud
 						}
+						handleRecordAndAppend={projectController.openActions.handleRecordAndAppend}
 						handleUndo={history.handleUndo}
 						handleRedo={history.handleRedo}
 						handleProjectNameSubmit={saveActions.handleProjectNameSubmit}

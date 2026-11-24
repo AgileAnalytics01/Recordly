@@ -7,9 +7,11 @@ import {
 } from "../../appSettingsStore";
 import { createCountdownController } from "../../countdownController";
 import { hideCursor } from "../../cursorHider";
+import { isTrustedRenderer } from "../../trustedRenderer";
 import { applyWindowControl } from "../../windowControls";
 import { COUNTDOWN_SETTINGS_FILE, SHORTCUTS_FILE } from "../constants";
 import { recordingFocus } from "../recording/focus";
+import { getRecordingShortcuts, setRecordingPauseShortcut } from "../recording/pauseShortcut";
 import {
 	type RecordingPreferencesPatch,
 	recordingPreferencesStore,
@@ -138,6 +140,12 @@ export function registerSettingsHandlers() {
 		} catch {
 			return null;
 		}
+	});
+
+	ipcMain.handle("get-recording-shortcuts", () => getRecordingShortcuts());
+	ipcMain.handle("set-recording-pause-shortcut", (event, binding: unknown) => {
+		if (!isTrustedRenderer(event)) return { success: false, error: "Untrusted sender" };
+		return setRecordingPauseShortcut(binding);
 	});
 
 	ipcMain.handle("save-shortcuts", async (_, shortcuts: unknown) => {

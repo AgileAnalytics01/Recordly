@@ -44,7 +44,10 @@ import {
 } from "./ipc/handlers";
 import { recordingFocus } from "./ipc/recording/focus";
 import { clearRecordingTrashUndo } from "./ipc/recording/library";
-import { setRecordingPauseShortcutActive } from "./ipc/recording/pauseShortcut";
+import {
+	loadRecordingShortcuts,
+	setRecordingPauseShortcutActive,
+} from "./ipc/recording/pauseShortcut";
 import { setRecordingZoomShortcutActive } from "./ipc/recording/zoomShortcut";
 import {
 	drainAppProcessDiagnostics,
@@ -1331,6 +1334,7 @@ app.on("second-instance", async (_event, commandLine, _workingDirectory, additio
 
 // Register all IPC handlers when app is ready
 app.whenReady().then(async () => {
+	void loadRecordingShortcuts();
 	setNativeLocale(String(readAppSetting("recordly.locale") || app.getLocale()));
 	authCallbacks.startDevServer();
 	if (process.defaultApp && process.argv[1]) {

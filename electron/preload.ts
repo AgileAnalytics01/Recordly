@@ -562,6 +562,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	},
 	showRecordingPermissions: () => invokeWithDiagnostics("show-recording-permissions"),
 	showRecordingHud: () => invokeWithDiagnostics("show-recording-hud"),
+	setRecordingAppendTarget: (enabled: boolean) =>
+		invokeWithDiagnostics("set-recording-append-target", enabled),
+	takeRecordingAppendTarget: () => invokeWithDiagnostics("take-recording-append-target"),
 	showOnboardingWindow: (options?: { preview?: boolean }) =>
 		invokeWithDiagnostics("show-onboarding-window", options),
 	...(process.platform === "darwin" || process.platform === "win32"
@@ -745,6 +748,15 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	},
 	getSystemCursorAssets: () => {
 		return ipcRenderer.invoke("get-system-cursor-assets");
+	},
+	getRecordingShortcuts: () => ipcRenderer.invoke("get-recording-shortcuts"),
+	setRecordingPauseShortcut: (binding: unknown) =>
+		ipcRenderer.invoke("set-recording-pause-shortcut", binding),
+	onRecordingShortcutsChanged: (callback: (shortcuts: unknown) => void) => {
+		const listener = (_event: Electron.IpcRendererEvent, shortcuts: unknown) =>
+			callback(shortcuts);
+		ipcRenderer.on("recording-shortcuts-changed", listener);
+		return () => ipcRenderer.removeListener("recording-shortcuts-changed", listener);
 	},
 	onTogglePauseRecordingFromShortcut: (callback: () => void) => {
 		const listener = () => callback();

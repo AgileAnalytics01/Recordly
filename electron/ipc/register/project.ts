@@ -6,6 +6,12 @@ import { BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { RECORDINGS_DIR } from "../../appPaths";
 import { buildMediaUrl, getMediaServerBaseUrl } from "../../mediaServer";
 import { nativeT } from "../../nativeI18n";
+import {
+	armRecordingAppend,
+	disarmRecordingAppend,
+	noteFinishedRecording,
+	takeRecordingAppendTarget,
+} from "../../recordingAppendTarget";
 import { isTrustedRenderer } from "../../trustedRenderer";
 import { LEGACY_PROJECT_FILE_EXTENSIONS, PROJECT_FILE_EXTENSION } from "../constants";
 import { getProjectBackupPaths, writeProjectFileAtomically } from "../project/atomicSave";
@@ -1060,6 +1066,16 @@ export function registerProjectHandlers() {
 		}
 	});
 
+	handle("set-recording-append-target", (_, enabled: unknown) => {
+		if (enabled !== true) {
+			disarmRecordingAppend();
+			return { success: true };
+		}
+		// Only the project this editor just saved can be the target.
+		return { success: armRecordingAppend(currentProjectPath) };
+	});
+	handle("take-recording-append-target", () => takeRecordingAppendTarget());
+
 	handle("open-project-file-at-path", async (_, filePath: string) => {
 		try {
 			return await loadProjectFromPath(filePath);
@@ -1145,6 +1161,7 @@ export function registerProjectHandlers() {
 
 			if (!options?.preserveProjectPath) {
 				setCurrentProjectPath(null);
+				noteFinishedRecording(nextSession.videoPath);
 			}
 
 			for (const window of BrowserWindow.getAllWindows()) {
@@ -1190,6 +1207,7 @@ export function registerProjectHandlers() {
 			await rememberApprovedLocalReadPath(currentRecordingSession!.webcamPath);
 			if (!options?.preserveProjectPath) {
 				setCurrentProjectPath(null);
+				noteFinishedRecording(currentRecordingSession!.videoPath);
 			}
 			await persistRecordingSessionManifest(currentRecordingSession!);
 

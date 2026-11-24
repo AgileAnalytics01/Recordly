@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { app, BrowserWindow, desktopCapturer, ipcMain, systemPreferences } from "electron";
+import { disarmRecordingAppend } from "../../recordingAppendTarget";
 import { recordingEditorLoading } from "../../recordingEditorLoading";
 import { createRecordingEditorNavigation } from "../../recordingEditorNavigation";
 import { createSourceListPicker } from "../../sourceListPicker";
@@ -691,6 +692,8 @@ body{background:transparent;overflow:hidden;width:100vw;height:100vh}
 		showOnboardingWindow({ permissionsOnly: true });
 	});
 	ipcMain.handle("show-project-dashboard", () => {
+		// Leaving the HUD for Projects abandons a pending "record and add".
+		disarmRecordingAppend();
 		recordingEditorLoading.clearError();
 		setHudRecordingPreparationActive(false);
 		openRecordingEditor(false);

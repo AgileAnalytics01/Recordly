@@ -15,5 +15,19 @@
 		"deleteSelectedAlt": "Delete Selected (alt)",
 		"panTimeline": "Pan Timeline",
 		"zoomTimeline": "Zoom Timeline"
+	},
+	"recording": {
+		"title": "Recording (works in any app)",
+		"pauseResume": "Pause / Resume recording",
+		"pauseResumeHint": "Works while you're in other apps. Include Ctrl/Cmd or Alt/Option, or use a function key.",
+		"zoomMarker": "Mark a zoom point",
+		"pressKeys": "Press keys…",
+		"off": "Off",
+		"change": "Change pause shortcut, currently {{binding}}",
+		"turnOff": "Turn off",
+		"reset": "Reset",
+		"saved": "Pause shortcut set to {{binding}}",
+		"disabled": "Pause shortcut turned off",
+		"unsupportedKey": "Use a letter, number, function key, Space or an arrow key."
 	}
 }
