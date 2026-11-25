@@ -130,20 +130,35 @@ export async function startNativeRecorder(
 		if (nativeResult.success) {
 			nativeScreenRecording.current = true;
 			nativeWindowsRecording.current = useNativeWindowsCapture;
-			if (shouldWarmStartNativeCapture) {
+			// The capture is already writing frames. Hold it until the countdown and the
+			// webcam (which can take seconds to open) are ready, so the file starts when
+			// the recording UI and desktop dimming appear rather than seconds earlier.
+			const waitForWebcam = !shouldWarmStartNativeCapture && !(await hasSettled(webcamReady));
+			let holdingCapture = false;
+			if (shouldWarmStartNativeCapture || waitForWebcam) {
 				nativeWarmStartActive.current = true;
 				const pauseResult = await window.electronAPI.pauseNativeScreenRecording();
 				if (startWasCancelled()) {
 					return "finished";
 				}
-				if (!pauseResult.success) {
+				if (pauseResult.success) {
+					holdingCapture = true;
+				} else if (shouldWarmStartNativeCapture) {
 					throw new Error(
 						pauseResult.error ??
 							pauseResult.message ??
 							"Failed to pause native capture before countdown",
 					);
+				} else {
+					console.warn(
+						"Could not hold native capture while the webcam opens:",
+						pauseResult.error ?? pauseResult.message,
+					);
+					nativeWarmStartActive.current = false;
 				}
+			}
 
+			if (shouldWarmStartNativeCapture) {
 				const countdownResult = await (countdown ?? startCountdown());
 				countdown = null;
 				if (!countdownResult.success || countdownResult.cancelled || startWasCancelled()) {
@@ -154,7 +169,13 @@ export async function startNativeRecorder(
 					await stopWebcamRecorder();
 					return "finished";
 				}
+			}
 
+			if (holdingCapture) {
+				await webcamReady;
+				if (startWasCancelled()) {
+					return "finished";
+				}
 				const resumeResult = await window.electronAPI.resumeNativeScreenRecording();
 				if (startWasCancelled()) {
 					return "finished";
@@ -163,7 +184,7 @@ export async function startNativeRecorder(
 					throw new Error(
 						resumeResult.error ??
 							resumeResult.message ??
-							"Failed to resume native capture after countdown",
+							"Failed to resume native capture",
 					);
 				}
 				nativeWarmStartActive.current = false;
@@ -172,7 +193,7 @@ export async function startNativeRecorder(
 				return "finished";
 			}
 
-			// The screen is already capturing, so stamp its start before waiting on the webcam.
+			// The screen is capturing again, so stamp its start before beginning the webcam.
 			const mainStartedAt = Date.now();
 			microphoneFallback.resetStartDelay();
 			resetRecordingClock(mainStartedAt);
@@ -254,4 +275,16 @@ export async function startNativeRecorder(
 			await countdown;
 		}
 	}
+}
+
+/** Whether a promise has already settled, checked after one event-loop turn. */
+function hasSettled(promise: Promise<unknown> | undefined) {
+	if (!promise) return Promise.resolve(true);
+	return Promise.race([
+		promise.then(
+			() => true,
+			() => true,
+		),
+		new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 0)),
+	]);
 }

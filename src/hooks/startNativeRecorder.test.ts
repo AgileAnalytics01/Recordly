@@ -128,7 +128,7 @@ describe("startNativeRecorder countdown overlap", () => {
 		expect(api.cancelCountdown).not.toHaveBeenCalled();
 	});
 
-	it("starts the fallback mic while the webcam is opening", async () => {
+	it("holds the screen capture until the webcam has opened", async () => {
 		const context = createContext();
 		context.microphoneEnabled = true;
 		vi.mocked(context.microphoneFallback.start).mockResolvedValue(true);
@@ -142,10 +142,53 @@ describe("startNativeRecorder countdown overlap", () => {
 			webcamReady,
 		});
 		resolveNative({ success: true, microphoneFallbackRequired: true });
-		await vi.waitFor(() => expect(context.microphoneFallback.start).toHaveBeenCalledOnce());
-		expect(context.beginWebcamCapture).not.toHaveBeenCalled();
+		await vi.waitFor(() => expect(api.pauseNativeScreenRecording).toHaveBeenCalledOnce());
+		expect(api.resumeNativeScreenRecording).not.toHaveBeenCalled();
+		expect(context.microphoneFallback.start).not.toHaveBeenCalled();
+		expect(context.setRecording).not.toHaveBeenCalledWith(true);
+		expect(api.startCountdown).not.toHaveBeenCalled();
+
 		openWebcam();
 		await expect(started).resolves.toBe("finished");
+		expect(api.resumeNativeScreenRecording).toHaveBeenCalledOnce();
+		expect(context.microphoneFallback.start).toHaveBeenCalledOnce();
 		expect(context.beginWebcamCapture).toHaveBeenCalledOnce();
+		expect(context.setRecording).toHaveBeenCalledWith(true);
+		expect(context.nativeWarmStartActive.current).toBe(false);
+	});
+
+	it("does not pause the capture when the webcam is already open", async () => {
+		const context = createContext();
+		const started = startNativeRecorder(context, {
+			...options,
+			shouldWarmStartNativeCapture: false,
+			webcamReady: Promise.resolve(),
+		});
+		resolveNative({ success: true });
+		await expect(started).resolves.toBe("finished");
+		expect(api.pauseNativeScreenRecording).not.toHaveBeenCalled();
+		expect(context.beginWebcamCapture).toHaveBeenCalledOnce();
+	});
+
+	it("keeps recording when the capture cannot be held for the webcam", async () => {
+		const context = createContext();
+		api.pauseNativeScreenRecording.mockResolvedValue({ success: false, message: "busy" });
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+		let openWebcam!: () => void;
+		const webcamReady = new Promise<void>((resolve) => {
+			openWebcam = resolve;
+		});
+		const started = startNativeRecorder(context, {
+			...options,
+			shouldWarmStartNativeCapture: false,
+			webcamReady,
+		});
+		resolveNative({ success: true });
+		await vi.waitFor(() => expect(api.pauseNativeScreenRecording).toHaveBeenCalledOnce());
+		openWebcam();
+		await expect(started).resolves.toBe("finished");
+		expect(api.resumeNativeScreenRecording).not.toHaveBeenCalled();
+		expect(context.setRecording).toHaveBeenCalledWith(true);
+		warn.mockRestore();
 	});
 });
