@@ -81,7 +81,19 @@ twice.
 instead of upstream's `3` (1.8x). This covers manual, auto, and
 recording-shortcut zooms. Existing zooms keep their saved depth.
 
-### 5. English strings
+### 5. Windows recording start sync
+
+- `electron/native/wgc-capture/src/main.cpp`: frame timestamps earlier than
+  the moment capture started are moved up to that moment. Windows stamps a
+  captured window's first frame with the time the window last changed, which
+  can be seconds before Record was pressed. Upstream uses that stamp as the
+  start of the video, so the first image is held over the gap and the mic
+  audio and clicks land seconds late. Drop this once upstream clamps or
+  discards stale first frames.
+- `src/hooks/startNativeRecorder.ts` (+ test): native capture is paused while
+  the webcam opens and resumed right before the recording UI appears.
+
+### 6. English strings
 
 New keys live in `src/i18n/locales/en/` (`editor.json`,
 `notifications.json`, `shortcuts.json`, `ui.json`). Other locales fall back to
@@ -118,6 +130,7 @@ Then build Windows with the **Build Electron App** workflow
 (`.github/workflows/build.yml`, manual run on this branch). Download the
 `windows-x64-release` artifact and check by hand: the pause hotkey and
 changing it in Settings, using the app without signing in, "Record & add",
+mic audio and clicks lining up with the video in a window recording,
 and new zooms starting at 1.5x.
 
 ## History note
