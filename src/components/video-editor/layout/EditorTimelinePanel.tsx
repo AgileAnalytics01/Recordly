@@ -204,7 +204,7 @@ export function EditorTimelinePanel(props: Props) {
 					}
 				}}
 				onTrackCountChange={setTrackCount}
-				showSourceAudioTrack={timeline.clipRegions.some((clip) => clip.showSourceAudio)}
+				showSourceAudioTrack
 				sourceAudioResourceVersion={timeline.sourceAudioFallbackRefreshKey}
 				sourceAudioTrackSettings={audio.getSourceAudioTrackSettingsForClip(
 					timeline.selectedClipId,

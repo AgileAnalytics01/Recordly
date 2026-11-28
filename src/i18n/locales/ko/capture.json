@@ -4,6 +4,7 @@
 	"selectArea": "영역 선택",
 	"chooseAnotherSource": "다른 소스 선택",
 	"microphoneLevel": "마이크 수준",
+	"micNoSignal": "마이크에서 소리가 들어오지 않습니다",
 	"colors": "색상",
 	"none": "없음",
 	"presetColors": "기본 색상",

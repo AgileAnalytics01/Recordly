@@ -150,6 +150,60 @@
 	color: var(--danger);
 }
 
+.recordingMicLevel {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	height: 28px;
+	padding: 0 6px;
+	border-radius: var(--radius-lg);
+	color: var(--muted);
+	-webkit-app-region: no-drag;
+}
+
+.recordingMicLevel[data-alert] {
+	color: var(--danger);
+	background: color-mix(in srgb, var(--danger) 14%, transparent);
+}
+
+.recordingMicBars {
+	display: flex;
+	align-items: flex-end;
+	gap: 2px;
+	height: 16px;
+}
+
+.recordingMicBars > span {
+	width: 3px;
+	border-radius: 1px;
+	background: color-mix(in srgb, currentColor 30%, transparent);
+	transition: background-color 80ms linear;
+}
+
+.recordingMicBars > span:nth-child(1) {
+	height: 4px;
+}
+.recordingMicBars > span:nth-child(2) {
+	height: 7px;
+}
+.recordingMicBars > span:nth-child(3) {
+	height: 10px;
+}
+.recordingMicBars > span:nth-child(4) {
+	height: 13px;
+}
+.recordingMicBars > span:nth-child(5) {
+	height: 16px;
+}
+
+.recordingMicBars > span[data-active] {
+	background: var(--success);
+}
+
+.recordingMicBars > span:nth-child(5)[data-active] {
+	background: var(--warning);
+}
+
 .captureControls {
 	display: flex;
 	align-items: center;

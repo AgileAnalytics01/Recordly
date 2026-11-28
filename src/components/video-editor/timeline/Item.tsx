@@ -56,6 +56,8 @@ interface ItemProps {
 	waveformSegmentSpan?: Span;
 	waveformGain?: number;
 	waveformNormalize?: boolean;
+	/** Shade silent stretches of the waveform. */
+	waveformHighlightSilence?: boolean;
 	muted?: boolean;
 	variant?: "zoom" | "trim" | "clip" | "annotation" | "speed" | "audio" | "caption";
 	isLoading?: boolean;
@@ -104,6 +106,7 @@ export default function Item({
 	waveformSegmentSpan,
 	waveformGain = 1,
 	waveformNormalize = false,
+	waveformHighlightSilence = false,
 	muted = false,
 	variant = "zoom",
 	isLoading = false,
@@ -567,6 +570,7 @@ export default function Item({
 							timelineEndMs={displaySpan.end}
 							gain={waveformGain}
 							normalize={waveformNormalize}
+							highlightSilence={waveformHighlightSilence}
 							className="absolute inset-0 w-full h-full pointer-events-none opacity-45"
 						/>
 					)}

@@ -4,6 +4,7 @@
 	"selectArea": "Bölge seç",
 	"chooseAnotherSource": "Başka bir kaynak seç",
 	"microphoneLevel": "Mikrofon seviyesi",
+	"micNoSignal": "Mikrofondan ses gelmiyor",
 	"colors": "Renkler",
 	"none": "Yok",
 	"presetColors": "Hazır renkler",

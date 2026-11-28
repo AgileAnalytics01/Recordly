@@ -93,7 +93,27 @@ recording-shortcut zooms. Existing zooms keep their saved depth.
 - `src/hooks/startNativeRecorder.ts` (+ test): native capture is paused while
   the webcam opens and resumed right before the recording UI appears.
 
-### 6. English strings
+### 6. Audio level indicators
+
+- Recording HUD: `src/components/launch/RecordingMicLevel.tsx` shows a live
+  mic level next to the timer while recording with the mic on. It opens its
+  own monitor stream on the same device (reusing `useAudioLevelMeter`) and
+  turns red with "No sound from the microphone" after 4 s of silence or if
+  the mic can't be opened. Wired in `RecordingControls.tsx`,
+  `LaunchWindow.tsx`, styles in `LaunchWindow.module.css`; key
+  `capture.micNoSignal` in every supported locale.
+- Editor timeline: the recording's own audio rows ("Source", or "Source
+  System" / "Source Mic" when the mic was saved as a separate file) always
+  show under the clip row. Upstream only showed them when a clip's
+  `showSourceAudio` flag was set, and nothing in the UI sets it. Changed in
+  `EditorTimelinePanel.tsx`, `TimelineCanvasRows.tsx` and `TimelineEditor.tsx`
+  (source volume button). Drop this if upstream adds a visible toggle.
+- `AudioWaveform.tsx` (`highlightSilence`, `findSilentRuns`, + test): shades
+  stretches of 1 s or more below about -40 dBFS in amber on those rows.
+- UI tests: `tests/ui/recording-mic-level.spec.ts`,
+  `tests/ui/waveform-viewport.spec.ts` (silence case).
+
+### 7. English strings
 
 New keys live in `src/i18n/locales/en/` (`editor.json`,
 `notifications.json`, `shortcuts.json`, `ui.json`). Other locales fall back to
@@ -131,7 +151,8 @@ Then build Windows with the **Build Electron App** workflow
 `windows-x64-release` artifact and check by hand: the pause hotkey and
 changing it in Settings, using the app without signing in, "Record & add",
 mic audio and clicks lining up with the video in a window recording,
-and new zooms starting at 1.5x.
+the mic level in the recording HUD, audio rows with silent stretches shaded
+in the editor, and new zooms starting at 1.5x.
 
 ## History note
 

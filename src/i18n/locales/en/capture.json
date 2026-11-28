@@ -4,6 +4,7 @@
 	"selectArea": "Select area",
 	"chooseAnotherSource": "Choose another source",
 	"microphoneLevel": "Microphone level",
+	"micNoSignal": "No sound from the microphone",
 	"colors": "Colors",
 	"none": "None",
 	"presetColors": "Preset colors",

@@ -4,6 +4,7 @@
 	"selectArea": "範囲を選択",
 	"chooseAnotherSource": "別の録画対象を選択",
 	"microphoneLevel": "マイクの入力レベル",
+	"micNoSignal": "マイクから音声が入っていません",
 	"colors": "色",
 	"none": "なし",
 	"presetColors": "プリセットカラー",

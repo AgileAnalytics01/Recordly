@@ -388,35 +388,34 @@ export const TimelineCanvasRows = memo(function TimelineCanvasRows({
 			{showSourceAudioTrack &&
 				sourceAudioTracks.map((track) => (
 					<Row key={track.id} id={`${SOURCE_AUDIO_ROW_ID}-${track.id}`}>
-						{clipItems
-							.filter((item) => item.showSourceAudio)
-							.map((item) => {
-								const settings = getSourceAudioTrackSettingsForClip?.(item.id)?.[
-									track.id
-								] ?? { volume: 1, normalize: false };
-								return (
-									<Item
-										key={`source-audio-${track.id}-${item.id}`}
-										id={`source-audio-${track.id}-${item.id}`}
-										rowId={`${SOURCE_AUDIO_ROW_ID}-${track.id}`}
-										span={liveSpanPreviewById?.[item.id] ?? item.span}
-										disabled
-										isSelected={
-											selectedClipIds?.includes(item.id) ??
-											item.id === selectedClipId
-										}
-										onSelect={() => onSelectClip?.(item.id)}
-										variant="audio"
-										waveformPeaks={track.peaks}
-										waveformSegmentSpan={item.sourceSpan ?? item.span}
-										waveformGain={Math.max(0, Math.min(1, settings.volume))}
-										waveformNormalize={Boolean(settings.normalize)}
-										muted={item.muted}
-									>
-										{track.label}
-									</Item>
-								);
-							})}
+						{clipItems.map((item) => {
+							const settings = getSourceAudioTrackSettingsForClip?.(item.id)?.[
+								track.id
+							] ?? { volume: 1, normalize: false };
+							return (
+								<Item
+									key={`source-audio-${track.id}-${item.id}`}
+									id={`source-audio-${track.id}-${item.id}`}
+									rowId={`${SOURCE_AUDIO_ROW_ID}-${track.id}`}
+									span={liveSpanPreviewById?.[item.id] ?? item.span}
+									disabled
+									isSelected={
+										selectedClipIds?.includes(item.id) ??
+										item.id === selectedClipId
+									}
+									onSelect={() => onSelectClip?.(item.id)}
+									variant="audio"
+									waveformPeaks={track.peaks}
+									waveformSegmentSpan={item.sourceSpan ?? item.span}
+									waveformGain={Math.max(0, Math.min(1, settings.volume))}
+									waveformNormalize={Boolean(settings.normalize)}
+									waveformHighlightSilence
+									muted={item.muted}
+								>
+									{track.label}
+								</Item>
+							);
+						})}
 					</Row>
 				))}
 

@@ -4,11 +4,14 @@ import { useScopedT } from "@/contexts/I18nContext";
 import { useRecordingShortcuts } from "@/hooks/useRecordingShortcuts";
 import { formatGlobalShortcut } from "@/lib/globalShortcut";
 import styles from "./LaunchWindow.module.css";
+import { RecordingMicLevel } from "./RecordingMicLevel";
 
 interface RecordingControlsProps {
 	paused: boolean;
 	busy?: boolean;
 	elapsed: number;
+	microphoneEnabled?: boolean;
+	microphoneDeviceId?: string;
 	onPauseResume: () => void;
 	onStopRecording: () => void;
 	onCancelRecording: () => void | Promise<unknown>;
@@ -19,6 +22,8 @@ export function RecordingControls({
 	paused,
 	busy = false,
 	elapsed,
+	microphoneEnabled = false,
+	microphoneDeviceId,
 	onPauseResume,
 	onStopRecording,
 	onCancelRecording,
@@ -51,6 +56,9 @@ export function RecordingControls({
 					{formatTime(elapsed).replace(/^0(?=\d:)/, "")}
 				</span>
 			</div>
+			{microphoneEnabled && (
+				<RecordingMicLevel deviceId={microphoneDeviceId} paused={paused} />
+			)}
 			<span aria-hidden="true" className={styles.captureDivider} />
 			<Tooltip>
 				<Button

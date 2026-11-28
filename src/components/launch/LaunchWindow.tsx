@@ -336,6 +336,8 @@ function LaunchWindowContent() {
 			busy={restarting || discarding}
 			paused={paused}
 			elapsed={elapsed}
+			microphoneEnabled={microphoneEnabled}
+			microphoneDeviceId={microphoneDeviceId}
 			onPauseResume={paused ? resumeRecording : pauseRecording}
 			onStopRecording={toggleRecording}
 			onCancelRecording={async () => {

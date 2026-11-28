@@ -460,7 +460,7 @@ const TimelineEditor = forwardRef<TimelineEditorHandle, TimelineEditorProps>(
 		const showSourceVolume =
 			selectedClipIds.length === 1 &&
 			sourceAudioTracks.length > 0 &&
-			clipRegions.some((clip) => clip.id === selectedClipId && clip.showSourceAudio);
+			clipRegions.some((clip) => clip.id === selectedClipId);
 		const sourceVolumeLabel = t("settings.audio.sourceTracksTitle");
 		return (
 			<div className="relative flex-1 min-h-0 flex flex-col bg-transparent overflow-hidden">

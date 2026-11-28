@@ -12,6 +12,11 @@ band.fill(
 );
 const impulse = new Float32Array(2048);
 impulse[59] = 0.8;
+// 10 s of speech with a 3 s dead stretch (4-7 s) and a short pause near 1 s.
+const silenceDurationMs = 10000;
+const speechWithGap = new Float32Array(1000).fill(0.8);
+speechWithGap.fill(0, 400, 700);
+speechWithGap.fill(0, 100, 103);
 
 createRoot(document.getElementById("root")!).render(
 	<ThemeProvider>
@@ -57,6 +62,22 @@ createRoot(document.getElementById("root")!).render(
 					segmentEndMs={865000}
 					timelineStartMs={5000}
 					timelineEndMs={15000}
+				/>
+			</div>
+		</TimelineContext>
+		<TimelineContext
+			range={{ start: 0, end: silenceDurationMs }}
+			onRangeChanged={() => undefined}
+			onResizeEnd={() => undefined}
+		>
+			<div id="silence" style={{ width: 100, height: 40 }}>
+				<AudioWaveform
+					peaks={{ peaks: speechWithGap, durationMs: silenceDurationMs }}
+					segmentStartMs={0}
+					segmentEndMs={silenceDurationMs}
+					timelineStartMs={0}
+					timelineEndMs={silenceDurationMs}
+					highlightSilence
 				/>
 			</div>
 		</TimelineContext>

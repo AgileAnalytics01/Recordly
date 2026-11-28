@@ -11,7 +11,35 @@ interface AudioWaveformProps {
 	timelineEndMs: number;
 	gain?: number;
 	normalize?: boolean;
+	/** Shade stretches where the source is silent so dead audio is easy to spot. */
+	highlightSilence?: boolean;
 	className?: string;
+}
+
+/** Peak level below which a stretch counts as silent (about -40 dBFS). */
+export const SILENCE_PEAK_THRESHOLD = 0.01;
+/** Shortest silent stretch worth shading, in source milliseconds. */
+export const MIN_SILENCE_MS = 1000;
+
+/**
+ * Finds runs of silent pixels that last at least `minRunPx`.
+ * Returns [startPx, endPx) pairs.
+ */
+export function findSilentRuns(
+	silent: ArrayLike<boolean>,
+	minRunPx: number,
+): Array<[number, number]> {
+	const runs: Array<[number, number]> = [];
+	let runStart = -1;
+	for (let px = 0; px <= silent.length; px++) {
+		const isSilent = px < silent.length && silent[px];
+		if (isSilent && runStart < 0) runStart = px;
+		if (!isSilent && runStart >= 0) {
+			if (px - runStart >= minRunPx) runs.push([runStart, px]);
+			runStart = -1;
+		}
+	}
+	return runs;
 }
 
 /**
@@ -27,6 +55,7 @@ function AudioWaveformComponent({
 	timelineEndMs,
 	gain = 1,
 	normalize = false,
+	highlightSilence = false,
 	className,
 }: AudioWaveformProps) {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -95,6 +124,7 @@ function AudioWaveformComponent({
 			const samplePixelRange = sourceMsPerPixel * peaksPerMs > 1;
 
 			const midY = height / 2;
+			const silent = highlightSilence ? new Array<boolean>(width).fill(false) : null;
 			ctx.beginPath();
 
 			for (let px = 0; px < width; px++) {
@@ -118,6 +148,7 @@ function AudioWaveformComponent({
 					amplitude = peakData[left] * (1 - mix) + peakData[right] * mix;
 				}
 
+				if (silent) silent[px] = amplitude < SILENCE_PEAK_THRESHOLD;
 				if (normalize) amplitude = Math.sqrt(Math.max(0, amplitude));
 				amplitude = Math.max(0, Math.min(1, amplitude * gain));
 
@@ -125,6 +156,15 @@ function AudioWaveformComponent({
 
 				ctx.moveTo(px, midY - barHeight);
 				ctx.lineTo(px, midY + barHeight);
+			}
+
+			if (silent && sourceMsPerPixel > 0) {
+				const minRunPx = Math.max(1, Math.ceil(MIN_SILENCE_MS / sourceMsPerPixel));
+				ctx.fillStyle =
+					theme === "dark" ? "rgba(251, 191, 36, 0.55)" : "rgba(217, 119, 6, 0.5)";
+				for (const [start, end] of findSilentRuns(silent, minRunPx)) {
+					ctx.fillRect(start, 0, end - start, height);
+				}
 			}
 
 			ctx.strokeStyle = theme === "dark" ? "rgba(255, 255, 255, 0.65)" : "rgba(0, 0, 0, 0.6)";
@@ -135,6 +175,7 @@ function AudioWaveformComponent({
 		return () => cancelAnimationFrame(rafId);
 	}, [
 		gain,
+		highlightSilence,
 		normalize,
 		peaks,
 		range.start,
