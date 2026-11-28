@@ -38,10 +38,11 @@ static int normalizeFramePoolExtent(int value) {
 // Frames the pool can hold while the consumer is busy; 2 starves easily at high frame rates.
 static constexpr int kFramePoolBuffers = 4;
 
-// How often the window is checked for open popups, and how long the monitor capture that
-// supplies their pixels keeps running after the last one closes.
-static constexpr auto kPopupPollInterval = std::chrono::milliseconds(25);
+// How long the monitor capture that supplies popup pixels keeps running after the last popup
+// closes, so the frame without it is recorded and quick reopenings don't restart it.
 static constexpr auto kPopupLinger = std::chrono::seconds(3);
+// Only used if Windows refuses the window event hook.
+static constexpr DWORD kPopupFallbackPollMs = 100;
 
 static RECT visibleWindowBounds(HWND hwnd) {
     RECT rect{};
@@ -310,7 +311,10 @@ bool WgcSession::startCapture() {
 
     if (windowHandle_) {
         popupWatcherRunning_ = true;
-        popupWatcher_ = std::thread([this] { watchPopups(); });
+        std::promise<void> ready;
+        auto started = ready.get_future();
+        popupWatcher_ = std::thread([this, &ready] { watchPopups(&ready); });
+        started.wait();
     }
     return true;
 }
@@ -319,6 +323,9 @@ void WgcSession::stopCapture() {
     capturing_ = false;
 
     popupWatcherRunning_ = false;
+    if (const DWORD watcherThread = popupWatcherThreadId_.load()) {
+        PostThreadMessageW(watcherThread, WM_QUIT, 0, 0);
+    }
     if (popupWatcher_.joinable()) popupWatcher_.join();
     stopPopupCapture();
 
@@ -457,6 +464,19 @@ std::vector<RECT> WgcSession::popupRectsOverWindow() const {
 
 void WgcSession::deliverWindowFrame(ID3D11Texture2D* texture, int contentWidth, int contentHeight,
                                     int64_t frameTimeHns) {
+    lastWindowContentWidth_ = contentWidth;
+    lastWindowContentHeight_ = contentHeight;
+
+    // No popup open: the frame goes straight through, exactly as without popup support.
+    if (!popupPool_) {
+        windowCache_.Reset();
+        lastFrameHadPopups_ = false;
+        if (frameTimeHns <= lastDeliveredHns_) return;
+        lastDeliveredHns_ = frameTimeHns;
+        frameCallback_(texture, contentWidth, contentHeight, frameTimeHns);
+        return;
+    }
+
     // Keep the newest window image so popup changes can be recorded while the window is idle.
     if (copyToCache(texture, windowCache_)) {
         windowCacheWidth_ = contentWidth;
@@ -469,14 +489,56 @@ void WgcSession::deliverWindowFrame(ID3D11Texture2D* texture, int contentWidth, 
     if (frameTimeHns <= lastDeliveredHns_) return;
 
     std::vector<RECT> popups;
-    if (popupPool_ && monitorCache_ && windowCache_) popups = popupRectsOverWindow();
-    if (popups.empty()) {
+    if (monitorCache_ && windowCache_) popups = popupRectsOverWindow();
+    if (popups.empty() || !windowCache_) {
         lastFrameHadPopups_ = false;
         lastDeliveredHns_ = frameTimeHns;
         frameCallback_(texture, contentWidth, contentHeight, frameTimeHns);
         return;
     }
     deliverComposite(popups, frameTimeHns);
+}
+
+bool WgcSession::seedWindowCacheFromMonitor() {
+    // The window may not repaint when a popup opens, so until it sends a frame of its own,
+    // its on-screen pixels stand in for it.
+    if (!monitorCache_ || lastWindowContentWidth_ <= 0 || lastWindowContentHeight_ <= 0 ||
+        framePoolWidth_ < lastWindowContentWidth_ || framePoolHeight_ < lastWindowContentHeight_) {
+        return false;
+    }
+    D3D11_TEXTURE2D_DESC desc{};
+    monitorCache_->GetDesc(&desc);
+    desc.Width = static_cast<UINT>(framePoolWidth_);
+    desc.Height = static_cast<UINT>(framePoolHeight_);
+    windowCache_.Reset();
+    if (FAILED(d3dDevice_->CreateTexture2D(&desc, nullptr, windowCache_.GetAddressOf()))) {
+        windowCache_.Reset();
+        return false;
+    }
+    windowCacheWidth_ = lastWindowContentWidth_;
+    windowCacheHeight_ = lastWindowContentHeight_;
+
+    const RECT window = visibleWindowBounds(windowHandle_);
+    const LONG left = (std::max)(window.left, popupMonitorRect_.left);
+    const LONG top = (std::max)(window.top, popupMonitorRect_.top);
+    const LONG right = (std::min)({window.left + static_cast<LONG>(windowCacheWidth_),
+                                   popupMonitorRect_.left + static_cast<LONG>(monitorCacheWidth_)});
+    const LONG bottom = (std::min)({window.top + static_cast<LONG>(windowCacheHeight_),
+                                    popupMonitorRect_.top + static_cast<LONG>(monitorCacheHeight_)});
+    if (right > left && bottom > top) {
+        D3D11_BOX source{};
+        source.left = static_cast<UINT>(left - popupMonitorRect_.left);
+        source.top = static_cast<UINT>(top - popupMonitorRect_.top);
+        source.right = static_cast<UINT>(right - popupMonitorRect_.left);
+        source.bottom = static_cast<UINT>(bottom - popupMonitorRect_.top);
+        source.front = 0;
+        source.back = 1;
+        d3dContext_->CopySubresourceRegion(
+            windowCache_.Get(), 0,
+            static_cast<UINT>(left - window.left), static_cast<UINT>(top - window.top), 0,
+            monitorCache_.Get(), 0, &source);
+    }
+    return true;
 }
 
 void WgcSession::deliverComposite(const std::vector<RECT>& popups, int64_t frameTimeHns) {
@@ -555,7 +617,8 @@ void WgcSession::onPopupFrameArrived(
     monitorCacheWidth_ = contentSize.Width;
     monitorCacheHeight_ = contentSize.Height;
 
-    if (!windowCache_ || !frameCallback_) return;
+    if (!frameCallback_) return;
+    if (!windowCache_ && !seedWindowCacheFromMonitor()) return;
     if (frameTimeHns < resumeTimestampHns_ || frameTimeHns <= lastDeliveredHns_) return;
     const bool paused = isPaused_ && isPaused_();
     if (!admitFrameTime(frameTimeHns, paused)) return;
@@ -619,6 +682,7 @@ void WgcSession::stopPopupCapture() {
         popupItem_ = nullptr;
         popupMonitor_ = nullptr;
         monitorCache_.Reset();
+        windowCache_.Reset();
     }
     try {
         if (session) session.Close();
@@ -627,28 +691,83 @@ void WgcSession::stopPopupCapture() {
     }
 }
 
-void WgcSession::watchPopups() {
-    // Popups are rare, so the monitor capture only runs while one is open (plus a short
-    // linger to record it closing). That keeps the cost off ordinary window recordings.
-    auto lastPopupSeen = std::chrono::steady_clock::time_point{};
-    while (popupWatcherRunning_) {
-        std::this_thread::sleep_for(kPopupPollInterval);
-        if (!popupWatcherRunning_ || popupCaptureFailed_) continue;
-        if (!IsWindow(windowHandle_)) break;
+// Out-of-context window events are delivered on the watcher thread while it pumps messages.
+static std::atomic<WgcSession*> g_popupWatcherOwner{nullptr};
 
-        const auto now = std::chrono::steady_clock::now();
-        if (!popupRectsOverWindow().empty()) {
-            lastPopupSeen = now;
-            HMONITOR monitor = MonitorFromWindow(windowHandle_, MONITOR_DEFAULTTONEAREST);
-            MONITORINFO info{};
-            info.cbSize = sizeof(info);
-            if (!monitor || !GetMonitorInfoW(monitor, &info)) continue;
-            if (!popupPool_ || monitor != popupMonitor_ ||
-                !EqualRect(&info.rcMonitor, &popupMonitorRect_)) {
-                startPopupCapture(monitor, info.rcMonitor);
-            }
-        } else if (popupPool_ && now - lastPopupSeen > kPopupLinger) {
-            stopPopupCapture();
+void CALLBACK onPopupWinEvent(HWINEVENTHOOK, DWORD, HWND hwnd, LONG idObject, LONG idChild,
+                              DWORD, DWORD) {
+    if (idObject != OBJID_WINDOW || idChild != CHILDID_SELF || !hwnd) return;
+    if (GetAncestor(hwnd, GA_ROOT) != hwnd) return;
+    if (WgcSession* owner = g_popupWatcherOwner.load()) owner->updatePopupCapture();
+}
+
+void WgcSession::updatePopupCapture() {
+    if (popupCaptureFailed_ || !IsWindow(windowHandle_)) return;
+
+    const auto now = std::chrono::steady_clock::now();
+    if (!popupRectsOverWindow().empty()) {
+        popupsOpen_ = true;
+        HMONITOR monitor = MonitorFromWindow(windowHandle_, MONITOR_DEFAULTTONEAREST);
+        MONITORINFO info{};
+        info.cbSize = sizeof(info);
+        if (!monitor || !GetMonitorInfoW(monitor, &info)) return;
+        if (!popupPool_ || monitor != popupMonitor_ ||
+            !EqualRect(&info.rcMonitor, &popupMonitorRect_)) {
+            startPopupCapture(monitor, info.rcMonitor);
         }
+        return;
     }
+    if (popupsOpen_) {
+        popupsOpen_ = false;
+        popupLingerDeadline_ = now + kPopupLinger;
+    } else if (popupPool_ && now >= popupLingerDeadline_) {
+        stopPopupCapture();
+    }
+}
+
+void WgcSession::watchPopups(std::promise<void>* ready) {
+    // Create this thread's message queue before anyone can post WM_QUIT to it.
+    MSG msg;
+    PeekMessageW(&msg, nullptr, WM_USER, WM_USER, PM_NOREMOVE);
+    popupWatcherThreadId_ = GetCurrentThreadId();
+    g_popupWatcherOwner = this;
+
+    // Windows reports when any window of the recorded app is shown, hidden or destroyed, so
+    // nothing runs while no popup comes or goes.
+    DWORD processId = 0;
+    GetWindowThreadProcessId(windowHandle_, &processId);
+    HWINEVENTHOOK hook = processId
+        ? SetWinEventHook(EVENT_OBJECT_DESTROY, EVENT_OBJECT_HIDE, nullptr, onPopupWinEvent,
+                          processId, 0, WINEVENT_OUTOFCONTEXT)
+        : nullptr;
+    if (!hook) {
+        std::cerr << "WARNING: Window event hook unavailable; checking for popups every "
+                  << kPopupFallbackPollMs << " ms" << std::endl;
+    }
+    ready->set_value();
+
+    // A popup may already be open when recording starts.
+    updatePopupCapture();
+    while (popupWatcherRunning_) {
+        DWORD timeout = hook ? INFINITE : kPopupFallbackPollMs;
+        if (popupPool_ && !popupsOpen_) {
+            const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(
+                popupLingerDeadline_ - std::chrono::steady_clock::now()).count();
+            const DWORD lingerTimeout = remaining > 0 ? static_cast<DWORD>(remaining) + 1 : 0;
+            timeout = (std::min)(timeout, lingerTimeout);
+        }
+        MsgWaitForMultipleObjectsEx(0, nullptr, timeout, QS_ALLINPUT, MWMO_INPUTAVAILABLE);
+        while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)) {
+            if (msg.message == WM_QUIT) {
+                popupWatcherRunning_ = false;
+                break;
+            }
+            DispatchMessageW(&msg);
+        }
+        if (popupWatcherRunning_ && (!hook || popupPool_)) updatePopupCapture();
+    }
+
+    if (hook) UnhookWinEvent(hook);
+    g_popupWatcherOwner = nullptr;
+    popupWatcherThreadId_ = 0;
 }

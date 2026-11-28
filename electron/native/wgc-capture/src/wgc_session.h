@@ -12,9 +12,11 @@
 
 #include <functional>
 #include <atomic>
+#include <chrono>
 #include <mutex>
 #include <string>
 #include <thread>
+#include <future>
 #include <vector>
 
 using Microsoft::WRL::ComPtr;
@@ -79,7 +81,12 @@ private:
     RECT popupMonitorRect_{};
     std::thread popupWatcher_;
     std::atomic<bool> popupWatcherRunning_{false};
+    std::atomic<DWORD> popupWatcherThreadId_{0};
     bool popupCaptureFailed_ = false;
+    bool popupsOpen_ = false;
+    std::chrono::steady_clock::time_point popupLingerDeadline_{};
+    int lastWindowContentWidth_ = 0;
+    int lastWindowContentHeight_ = 0;
     ComPtr<ID3D11Texture2D> windowCache_;
     int windowCacheWidth_ = 0;
     int windowCacheHeight_ = 0;
@@ -108,7 +115,10 @@ private:
                             int64_t frameTimeHns);
     void deliverComposite(const std::vector<RECT>& popups, int64_t frameTimeHns);
     std::vector<RECT> popupRectsOverWindow() const;
-    void watchPopups();
+    bool seedWindowCacheFromMonitor();
+    void watchPopups(std::promise<void>* ready);
+    friend void CALLBACK onPopupWinEvent(HWINEVENTHOOK, DWORD, HWND, LONG, LONG, DWORD, DWORD);
+    void updatePopupCapture();
     void startPopupCapture(HMONITOR monitor, const RECT& monitorRect);
     void stopPopupCapture();
     void onPopupFrameArrived(

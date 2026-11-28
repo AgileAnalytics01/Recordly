@@ -105,12 +105,15 @@ Recording a single window on Windows left out dropdown lists, context menus
 and tooltips: Windows Graphics Capture records only the chosen window, and
 those are separate popup windows.
 
-- `electron/native/wgc-capture/src/wgc_session.cpp` / `.h`: while a popup of
-  the recorded app is open over the window, a monitor capture runs alongside
-  and the popup's area is copied from it into the window frame. The monitor
-  capture stops 3 seconds after the last popup closes. Popups are visible,
+- `electron/native/wgc-capture/src/wgc_session.cpp` / `.h`: a window event
+  hook (`SetWinEventHook`, limited to the recorded app's process) reports
+  when its windows are shown or hidden, so nothing runs while no popup comes
+  or goes. While a popup is open over the window, a monitor capture runs
+  alongside and the popup's area is copied from it into the window frame. It
+  stops 3 seconds after the last popup closes. Popups are visible,
   captionless, non-resizable `WS_POPUP` windows of the same process that sit
-  above the window. If the monitor capture can't start, the window is still
+  above the window. Without an open popup, window frames go to the encoder
+  untouched. If the monitor capture can't start, the window is still
   recorded without popups.
 - `electron/native/wgc-capture/CMakeLists.txt`: links `dwmapi`.
 
