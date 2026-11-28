@@ -99,6 +99,23 @@ New keys live in `src/i18n/locales/en/` (`editor.json`,
 `notifications.json`, `shortcuts.json`, `ui.json`). Other locales fall back to
 the English defaults written in code.
 
+### 7. Popups in Windows window recordings
+
+Recording a single window on Windows left out dropdown lists, context menus
+and tooltips: Windows Graphics Capture records only the chosen window, and
+those are separate popup windows.
+
+- `electron/native/wgc-capture/src/wgc_session.cpp` / `.h`: while a popup of
+  the recorded app is open over the window, a monitor capture runs alongside
+  and the popup's area is copied from it into the window frame. The monitor
+  capture stops 3 seconds after the last popup closes. Popups are visible,
+  captionless, non-resizable `WS_POPUP` windows of the same process that sit
+  above the window. If the monitor capture can't start, the window is still
+  recorded without popups.
+- `electron/native/wgc-capture/CMakeLists.txt`: links `dwmapi`.
+
+Drop this once upstream records popups in window captures.
+
 ## How to update to a new upstream release
 
 ```bash

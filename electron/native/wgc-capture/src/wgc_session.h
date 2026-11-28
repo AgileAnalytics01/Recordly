@@ -14,6 +14,8 @@
 #include <atomic>
 #include <mutex>
 #include <string>
+#include <thread>
+#include <vector>
 
 using Microsoft::WRL::ComPtr;
 
@@ -66,6 +68,28 @@ private:
     int64_t resumeTimestampHns_ = 0;
     HWND windowHandle_ = nullptr;
 
+    // Window capture only sees the window itself. Dropdown lists, context menus and tooltips
+    // are separate popup windows, so while one is open over the window a monitor capture
+    // runs alongside and its pixels are copied into the window frame.
+    winrt::Windows::Graphics::Capture::GraphicsCaptureItem popupItem_{nullptr};
+    winrt::Windows::Graphics::Capture::Direct3D11CaptureFramePool popupPool_{nullptr};
+    winrt::Windows::Graphics::Capture::GraphicsCaptureSession popupSession_{nullptr};
+    winrt::Windows::Graphics::Capture::Direct3D11CaptureFramePool::FrameArrived_revoker popupFrameRevoker_;
+    HMONITOR popupMonitor_ = nullptr;
+    RECT popupMonitorRect_{};
+    std::thread popupWatcher_;
+    std::atomic<bool> popupWatcherRunning_{false};
+    bool popupCaptureFailed_ = false;
+    ComPtr<ID3D11Texture2D> windowCache_;
+    int windowCacheWidth_ = 0;
+    int windowCacheHeight_ = 0;
+    ComPtr<ID3D11Texture2D> monitorCache_;
+    int monitorCacheWidth_ = 0;
+    int monitorCacheHeight_ = 0;
+    ComPtr<ID3D11Texture2D> composite_;
+    bool lastFrameHadPopups_ = false;
+    int64_t lastDeliveredHns_ = 0;
+
     bool createD3DDevice();
     winrt::Windows::Graphics::DirectX::Direct3D11::IDirect3DDevice createWinRTDevice();
     winrt::Windows::Graphics::Capture::GraphicsCaptureItem createCaptureItemForMonitor(HMONITOR monitor);
@@ -78,4 +102,15 @@ private:
     bool readFrame(
         winrt::Windows::Graphics::Capture::Direct3D11CaptureFramePool const& pool,
         bool skipFrameRateLimit);
+    bool admitFrameTime(int64_t frameTimeHns, bool skipFrameRateLimit);
+    bool copyToCache(ID3D11Texture2D* source, ComPtr<ID3D11Texture2D>& cache);
+    void deliverWindowFrame(ID3D11Texture2D* texture, int contentWidth, int contentHeight,
+                            int64_t frameTimeHns);
+    void deliverComposite(const std::vector<RECT>& popups, int64_t frameTimeHns);
+    std::vector<RECT> popupRectsOverWindow() const;
+    void watchPopups();
+    void startPopupCapture(HMONITOR monitor, const RECT& monitorRect);
+    void stopPopupCapture();
+    void onPopupFrameArrived(
+        winrt::Windows::Graphics::Capture::Direct3D11CaptureFramePool const& sender);
 };
